@@ -6,6 +6,7 @@ DS3231  rtc(SDA, SCL);
 // Init a Time-data structures
 Time  currentTime; //time from RTC
 Time t; // Time variable for operations
+Time lightPauseTimer; // Time variable for operations
 #define NUMBER_OF_WHITE_LED_BARS_ON_RELAY 4 //How many white led bars(connected to relay) to use with PWN white led bat
 #define NUMBER_OF_WHITE_LED_BARS 5
 
@@ -19,7 +20,7 @@ Time t; // Time variable for operations
 #define CIAN_LED_PWM 11 //L298N PWM output #4 for white LED bar
 #define BUTTON 12 //Button to make instant dark fo 2 hours
 
-#define INSTANT_DARK_PERIOD_MINUTES 120 //Button to make instant dark fo 2 hours
+#define LIGHT_PAUSE_HOURS 2 //Button to make instant dark fo 2 hours
 
 
 #define sunriseHour 7 //Hour for sunrise (0->255)
@@ -35,7 +36,16 @@ int sunriseStepDurationInSeconds;
 int sunsetStepDurationInSeconds;
 int oneMoreWhiteLedBarOnPeriodInSeconds;
 int oneMoreWhiteLedBarOffPeriodInSeconds;
+long lastLightSet = 0;
+long ligtPauseSet = 0;
+bool lightPause = false;
 
+//button debounce
+
+int buttonState = HIGH;             // the current reading from the input pin
+int lastButtonState = HIGH;   // the previous reading from the input pin
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 100;    // the debounce time; increase if the output flickers
 
 void setup()
 {
@@ -44,15 +54,12 @@ void setup()
 
 	// Initialize the rtc object
 	rtc.begin();
+	lightPauseTimer = rtc.getTime();
 	currentTime = rtc.getTime();
 
-	//  // The following lines can be uncommented to set the date and time
-	//rtc.setDOW(SUNDAY);     // Set Day-of-Week to MONDAY
-	//rtc.setTime(18, 10, 00);     // Set the time to 21:58:00 (24hr format)
-	//rtc.setDate(26, 03, 2017);   // Set the date to 07 March 2016
+	//The following lines can be uncommented to set the date and time
 
-
-
+	//rtc.setTime(21, 20, 00);     // Set the time to 21:58:00 (24hr format)
 
 	// t =  00:00:00 on January 1th 2017 - For timespan culculations
 	t.hour = 0;
@@ -89,22 +96,77 @@ void setup()
 }
 
 void loop() {
-	// Get data from the DS3231
+	// Get data from the DS3231 and set up for further culculations
 	currentTime = rtc.getTime();
-	Serial.print(rtc.getTimeStr());
-	Serial.print(" ");
-	Serial.print(rtc.getDateStr());
-	Serial.print(" ");
-
-	setLightLevel(currentTime);
-	Serial.println("---------------delay 5 seconds--------------------- ");
-	delay(5000);              // wait for 5 seconds
-}
-
-void setLightLevel(Time currentTime) {
 	currentTime.year = 2017;
 	currentTime.mon = 1;
 	currentTime.date = 1;
+	long now = millis();
+	if (now - lastLightSet > 5000 && !lightPause) {
+		lastLightSet = now;
+		Serial.println(rtc.getTimeStr());
+		setLightLevel(currentTime);
+	}
+	readButton();
+	if (buttonState == LOW && currentTime.hour <= nightHour) // add two hours works before 21.00
+	{
+		lightPauseTimer = rtc.getTime();
+		lightPauseTimer.year = 2017;
+		lightPauseTimer.mon = 1;
+		lightPauseTimer.date = 1;
+		lightPauseTimer.hour += LIGHT_PAUSE_HOURS;
+		lightPause = true;
+		whiteLedBarsLightLevel(0);
+		analogWrite(WHITE_LED_PWM, 0);
+		Serial.println("Light pause activated");
+		Serial.print("Light will ON ");
+		Serial.print(lightPauseTimer.hour);
+		Serial.print(":");
+		Serial.println(lightPauseTimer.min);
+		delay(2000);
+	}
+	long utCurrent = rtc.getUnixTime(currentTime);
+	long utFromTimer = rtc.getUnixTime(lightPauseTimer);
+	if (now - ligtPauseSet > 5000 && lightPause) {
+		ligtPauseSet = now;
+		long countDown = (utFromTimer - utCurrent) / 60;
+		Serial.print("Light will in ");
+		Serial.print(countDown);
+		Serial.println(" minutes");
+		if (utCurrent > utFromTimer)
+		{
+			lightPause = false;
+		}
+	}
+
+}
+
+void readButton() {
+	int reading = digitalRead(BUTTON); //When pressed is LOW
+	// check to see if you just pressed the button
+	// (i.e. the input went from HIGH to LOW), and you've waited long enough
+	// since the last press to ignore any noise:
+
+	// If the switch changed, due to noise or pressing:
+	if (reading != lastButtonState) {
+		// reset the debouncing timer
+		lastDebounceTime = millis();
+	}
+	if ((millis() - lastDebounceTime) > debounceDelay) {
+		// whatever the reading is at, it's been there for longer than the debounce
+		// delay, so take it as the actual current state:
+
+		// if the button state has changed:
+		if (reading != buttonState) {
+			buttonState = reading;			
+		}
+	}
+	// save the reading. Next time through the loop, it'll be the lastButtonState:
+	lastButtonState = reading;
+}
+
+
+void setLightLevel(Time currentTime) {
 	//--- sunrise block---
 	if (currentTime.hour >= sunriseHour && currentTime.hour < dayHour) {
 		t.hour = sunriseHour;
