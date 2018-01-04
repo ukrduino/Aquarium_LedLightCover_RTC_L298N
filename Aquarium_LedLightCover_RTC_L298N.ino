@@ -17,7 +17,6 @@ Time lightPauseTimer; // Time variable for operations
 #define LED_RELAY_4 5 //Relay on the relay shield with white LED bar
 #define WHITE_LED_PWM 6 //L298N PWM output #1 for white LED bar
 #define BLUE_LED_PWM 10 //L298N PWM output #3 for blue LED bar
-#define CIAN_LED_PWM 11 //L298N PWM output #4 for white LED bar
 #define BUTTON 12 //Button to make instant dark fo 2 hours
 
 #define LIGHT_PAUSE_HOURS 2 //Button to make instant dark fo 2 hours
@@ -59,7 +58,7 @@ void setup()
 
 	//The following lines can be uncommented to set the date and time
 
-	//rtc.setTime(21, 20, 00);     // Set the time to 21:58:00 (24hr format)
+	// rtc.setTime(7, 53, 00);     // Set the time to 21:58:00 (24hr format)
 
 	// t =  00:00:00 on January 1th 2017 - For timespan culculations
 	t.hour = 0;
@@ -84,7 +83,6 @@ void setup()
 	pinMode(LED_RELAY_4, OUTPUT);
 	pinMode(WHITE_LED_PWM, OUTPUT);
 	pinMode(BLUE_LED_PWM, OUTPUT);
-	pinMode(CIAN_LED_PWM, OUTPUT);
 	analogWrite(WHITE_LED_PWM, 0);
 	digitalWrite(LED_RELAY_1, HIGH);
 	digitalWrite(LED_RELAY_2, HIGH);
@@ -177,7 +175,6 @@ void setLightLevel(Time currentTime) {
 		Serial.print("It is sunrise time now, light level: ");
 		Serial.println(lightLevel);
 		analogWrite(BLUE_LED_PWM, lightLevel);
-		analogWrite(CIAN_LED_PWM, lightLevel);
 		int numberOfLedBar = (int)secondsPassedFromSunrise / oneMoreWhiteLedBarOnPeriodInSeconds;
 		whiteLedBarsLightLevel(numberOfLedBar);
 		float lightLevelFloat = (secondsPassedFromSunrise % oneMoreWhiteLedBarOnPeriodInSeconds) / sunriseStepDurationInSeconds;
@@ -188,7 +185,6 @@ void setLightLevel(Time currentTime) {
 		t.hour = 0;
 		Serial.println("It is day time now, light level: 255");
 		analogWrite(BLUE_LED_PWM, 255);
-		analogWrite(CIAN_LED_PWM, 255);
 		analogWrite(WHITE_LED_PWM, 255);
 		whiteLedBarsLightLevel(NUMBER_OF_WHITE_LED_BARS_ON_RELAY);
 	};
@@ -200,7 +196,6 @@ void setLightLevel(Time currentTime) {
 		Serial.print("It is sunset time now, light level: ");
 		Serial.println(lightLevel);
 		analogWrite(BLUE_LED_PWM, lightLevel);
-		analogWrite(CIAN_LED_PWM, lightLevel);
 		long secondsPassedFromSunset = time2 - time1;
 		int numberOfLedBarToDisable = (int)secondsPassedFromSunset / oneMoreWhiteLedBarOffPeriodInSeconds;
 		whiteLedBarsLightLevel(NUMBER_OF_WHITE_LED_BARS_ON_RELAY - numberOfLedBarToDisable);
@@ -215,7 +210,6 @@ void setLightLevel(Time currentTime) {
 		t.hour = 0;
 		Serial.println("It is night time now, light level: 0");
 		analogWrite(BLUE_LED_PWM, 0);
-		analogWrite(CIAN_LED_PWM, 0);
 		analogWrite(WHITE_LED_PWM, 0);
 		whiteLedBarsLightLevel(0);
 	};
